@@ -1,0 +1,103 @@
+import bpy
+import math
+import mathutils
+
+from pprint import pprint as print
+
+# <----- Fonction ------>
+
+def setup_élément_localisation(current_angle, radius) :
+
+        # calcule des coordonner :
+        x = math.sin(current_angle) * radius
+        y = math.cos(current_angle) * radius
+        z = 0   
+        
+        return (x, y, z)
+
+def setup_élément_taille(objet, size):
+    
+    if objet and objet.type == 'MESH':
+        
+        # gestion de la taille
+        objet.scale[0] = size # valeur pour X
+        objet.scale[1] = size # valeur pour Y
+        objet.scale[2] = size # valeur pour Z
+        
+def setup_élément_rotation(objet, i: int):
+    
+    # Parcourir tous les sommets (points) de l'objet Mesh
+    # on appel l'objet qui vas permetre la rotation, la rotation est basé sur cette élément
+    curve_rotation = bpy.data.objects['curve_rotation']
+    
+    if objet and objet.type == 'MESH':
+        vert =  curve_rotation.data.vertices[i]
+        
+        # Copier l'objet qui sera distriber a chaque point de la curve
+        new_instance = objet.copy()
+        bpy.context.collection.objects.link(new_instance)  # Ajouter à la scène
+
+        # Positionner l'instance au sommet correspondant a l'objet curve
+        new_instance.location = vert.co
+
+        # Calculer une rotation alignée sur la direction du sommet
+        direction = vert.co.normalized()  # Normalisation pour obtenir un vecteur directionnel
+
+        # Vérifier que le vecteur direction n'est pas nul (évite les erreurs)
+        if direction.length > 0:
+            # Aligner l'axe Z de l'instance sur la direction
+            new_instance.rotation_mode = 'QUATERNION'
+            new_instance.rotation_quaternion = direction.to_track_quat('Z', 'Y')
+
+    # Supprimer l'instance originale après duplication
+    bpy.data.objects.remove(objet)
+    return new_instance
+          
+
+def creat_object(count_obj : int, size_cube : float, radius = 1, visble : bool = False): # (count_obj,  raduis = 1, visble = False) :
+    
+    step_rotation = math.pi/count_obj
+    angle_step = math.tau / count_obj # tau = 2pi 
+    location = list()
+    
+    
+    for i in range(count_obj):
+        current_angle = angle_step*i 
+        current_rotation = step_rotation*i
+        name = f"shere_{i}"
+        
+        # appel fonction pour calculer la localisation de tout les éléments
+        location.append(setup_élément_localisation(current_angle, radius))
+        
+        object_coordinate.append(location)
+        object_coordinate_rotation.append(location)
+        
+        bpy.ops.mesh.primitive_cube_add(size=radius, enter_editmode=False, align='WORLD', location= location[i])
+        
+        objet = bpy.context.active_object
+        
+        setup_élément_taille(objet, size_cube)
+        objet = setup_élément_rotation(objet, i)
+        
+        object_sphere.append((name, objet))
+        
+def creation_curve(count_vertices, radius) : 
+    bpy.ops.mesh.primitive_circle_add(vertices=count_vertices, radius=radius, enter_editmode=False, align='WORLD', location=(0, 0, 0), scale=(1, 1, 1))
+    curve = bpy.context.active_object
+    curve.name = "curve_rotation"
+
+# ----- Procedural -----
+
+# init parametre :
+count_obj = 16
+step_obj = 0
+
+radius = 1  # variable liée a la taille du cercle
+
+object_coordinate = list()
+object_coordinate_rotation = list()
+object_sphere = list()
+
+# Création d'une curve basé sur la disposition des elements (count_obj), permet la rotation:
+creation_curve(count_obj, radius)
+creat_object(count_obj, radius)
